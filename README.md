@@ -63,6 +63,18 @@ docker run -d -p 8082:8082 \
   ghcr.io/schapat/cli-to-api-proxy
 ```
 
+## MCP Support (Optional)
+
+Connect to an MCP server to give the CLI access to external tools (n8n, databases, etc.):
+
+```bash
+export MCP_SERVER_URL=http://localhost:5678/mcp-server/http
+export MCP_API_KEY=your-mcp-token
+npm start
+```
+
+The proxy injects available tools into the system prompt. The CLI can then use them.
+
 ## License
 
 MIT
