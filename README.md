@@ -1,6 +1,6 @@
-# Claude & Kiro CLI Proxy
+# LLM CLI Proxy
 
-A local API proxy server that exposes **Claude CLI** and **Kiro CLI** through standard Anthropic and OpenAI-compatible REST APIs. This allows you to use your existing CLI subscriptions with any application that supports the Anthropic or OpenAI API format.
+A local API proxy that exposes **Claude CLI**, **Kiro CLI**, and other LLM command-line tools through standard **Anthropic** and **OpenAI-compatible** REST APIs. Use your existing CLI subscriptions with any application that supports these API formats.
 
 ## Why Use This?
 
@@ -8,12 +8,12 @@ If you have a **Claude CLI** or **Kiro CLI** subscription, you can use this prox
 
 - ✅ Use your CLI subscription in **n8n**, **Paperclip**, **LangChain**, or any OpenAI/Anthropic-compatible app
 - ✅ Avoid paying for separate API keys
-- ✅ Switch between Claude CLI and Kiro CLI backends dynamically
+- ✅ Switch between different CLI backends dynamically
 - ✅ Run everything locally with your existing subscription
 
 ## Features
 
-- 🔄 **Dual Provider Support** - Switch between Claude CLI and Kiro CLI on-the-fly
+- 🔄 **Multi-Provider Support** - Switch between Claude CLI and Kiro CLI on-the-fly (extensible for more)
 - 🌐 **Two API Formats**:
   - Anthropic Messages API (`/v1/messages`)
   - OpenAI Chat Completions API (`/v1/chat/completions`)
@@ -36,8 +36,8 @@ If you have a **Claude CLI** or **Kiro CLI** subscription, you can use this prox
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/claude-cli-proxy.git
-cd claude-cli-proxy
+git clone https://github.com/Schapat/llm-cli-proxy.git
+cd llm-cli-proxy
 
 # Install dependencies
 npm install
