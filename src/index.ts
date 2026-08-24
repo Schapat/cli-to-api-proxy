@@ -21,121 +21,8 @@ const DEFAULT_PROVIDER = process.env.DEFAULT_PROVIDER || 'claude';
 const API_KEY = process.env.PROXY_API_KEY || 'sk-claude-proxy-key';
 const REQUIRE_AUTH = process.env.REQUIRE_AUTH !== 'false';
 
-// MCP Configuration (optional)
-const MCP_SERVER_URL = process.env.MCP_SERVER_URL || '';
-const MCP_API_KEY = process.env.MCP_API_KEY || '';
-
 // Provider type
 type Provider = 'claude' | 'kiro';
-
-// ============================================================================
-// OPTIONAL MCP CLIENT
-// ============================================================================
-
-interface MCPTool {
-  name: string;
-  description: string;
-  inputSchema: { type: string; properties: Record<string, unknown>; required?: string[] };
-}
-
-class MCPClient {
-  private serverUrl: string;
-  private apiKey: string;
-  private tools: MCPTool[] = [];
-  private ready = false;
-
-  constructor(url: string, key: string) {
-    this.serverUrl = url;
-    this.apiKey = key;
-  }
-
-  async initialize(): Promise<void> {
-    if (!this.serverUrl) return;
-
-    try {
-      const headers = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Accept': 'application/json, text/event-stream',
-      };
-
-      // Initialize session
-      const initRes = await fetch(this.serverUrl, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          jsonrpc: '2.0', id: 1, method: 'initialize',
-          params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'cli-proxy', version: '2.0' } },
-        }),
-      });
-
-      if (!initRes.ok) {
-        log('warn', 'MCP init failed', { status: initRes.status });
-        return;
-      }
-
-      // Get tools
-      const res = await fetch(this.serverUrl, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list' }),
-      });
-
-      if (!res.ok) {
-        log('warn', 'MCP tools/list failed', { status: res.status });
-        return;
-      }
-
-      const text = await res.text();
-      // Parse SSE format: "event: message\ndata: {...}"
-      for (const line of text.split('\n')) {
-        if (line.startsWith('data: ')) {
-          try {
-            const data = JSON.parse(line.slice(6));
-            if (data.result?.tools) {
-              this.tools = data.result.tools;
-              this.ready = true;
-              log('info', 'MCP initialized', { tools: this.tools.length });
-              return;
-            }
-          } catch { /* continue */ }
-        }
-      }
-    } catch (e) {
-      log('warn', 'MCP init failed', { error: (e as Error).message });
-    }
-  }
-
-  isEnabled(): boolean { return this.ready && this.tools.length > 0; }
-  getTools(): MCPTool[] { return this.tools; }
-
-  getToolsPrompt(): string {
-    if (!this.ready) return '';
-    const desc = this.tools.map(t => `- ${t.name}: ${t.description}`).join('\n');
-    return `\n\nYou have access to these tools. To use one, respond with JSON: {"tool": "name", "args": {...}}\n\nTools:\n${desc}`;
-  }
-
-  async callTool(name: string, args: Record<string, unknown>): Promise<string> {
-    const res = await fetch(this.serverUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Accept': 'application/json, text/event-stream',
-      },
-      body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method: 'tools/call', params: { name, arguments: args } }),
-    });
-    const text = await res.text();
-    const match = text.match(/data: ({.*})/);
-    if (match) {
-      const data = JSON.parse(match[1]);
-      return data.result?.content?.[0]?.text || JSON.stringify(data.result);
-    }
-    return 'No result';
-  }
-}
-
-const mcpClient = new MCPClient(MCP_SERVER_URL, MCP_API_KEY);
 
 // ============================================================================
 // CLAUDE CLI MODEL MAPPING
@@ -389,10 +276,8 @@ async function executeClaudeCli(
       '--dangerously-skip-permissions',
     ];
 
-    // Add MCP tools to system prompt if enabled
-    const fullSystemPrompt = (systemPrompt || '') + mcpClient.getToolsPrompt();
-    if (fullSystemPrompt) {
-      args.push('--system-prompt', fullSystemPrompt);
+    if (systemPrompt) {
+      args.push('--system-prompt', systemPrompt);
     }
 
     // Pass model to CLI - accepts both aliases (sonnet, opus) and full names (claude-3-5-sonnet-20241022)
@@ -469,10 +354,9 @@ async function executeKiroCli(
       args.push('--model', model);
     }
 
-    // Add MCP tools to system prompt if enabled
-    const fullSystemPrompt = (systemPrompt || '') + mcpClient.getToolsPrompt();
-    const fullPrompt = fullSystemPrompt 
-      ? `System: ${fullSystemPrompt}\n\n${prompt}`
+    // For Kiro, we pass the prompt as the input argument
+    const fullPrompt = systemPrompt 
+      ? `System: ${systemPrompt}\n\n${prompt}`
       : prompt;
     
     args.push(fullPrompt);
@@ -678,7 +562,6 @@ app.get('/health', (_req: Request, res: Response) => {
     },
     defaultProvider: DEFAULT_PROVIDER,
     authRequired: REQUIRE_AUTH,
-    mcp: mcpClient.isEnabled() ? { enabled: true, tools: mcpClient.getTools().length } : { enabled: false },
   });
 });
 
@@ -993,40 +876,45 @@ app.post('/v1/chat/completions', authenticate, async (req: Request, res: Respons
 });
 
 // Start server
-async function start() {
-  // Initialize MCP if configured
-  if (MCP_SERVER_URL) {
-    await mcpClient.initialize();
-  }
-
-  app.listen(Number(PORT), HOST, () => {
-    log('info', 'CLI Proxy started', { 
-      port: PORT, 
-      host: HOST,
-      claudeCli: CLAUDE_CLI_PATH,
-      kiroCli: KIRO_CLI_PATH,
-      defaultProvider: DEFAULT_PROVIDER,
-      timeout: TIMEOUT_MS,
-      authRequired: REQUIRE_AUTH,
-      mcp: mcpClient.isEnabled(),
-    });
-    
-    console.log(`
+app.listen(Number(PORT), HOST, () => {
+  log('info', 'CLI Proxy started', { 
+    port: PORT, 
+    host: HOST,
+    claudeCli: CLAUDE_CLI_PATH,
+    kiroCli: KIRO_CLI_PATH,
+    defaultProvider: DEFAULT_PROVIDER,
+    timeout: TIMEOUT_MS,
+    authRequired: REQUIRE_AUTH,
+  });
+  
+  console.log(`
 ╔══════════════════════════════════════════════════════════════════════╗
 ║                   Claude & Kiro CLI Proxy v2.0                       ║
 ╠══════════════════════════════════════════════════════════════════════╣
 ║                                                                      ║
-║  API Endpoint: http://${HOST}:${PORT}/v1/chat/completions                  ║
+║  API Endpoint: http://${HOST}:${PORT}/v1/messages                          ║
 ║  Health Check: http://${HOST}:${PORT}/health                               ║
 ║                                                                      ║
-║  Providers: claude, kiro     Default: ${DEFAULT_PROVIDER}                        ║
-║  MCP: ${mcpClient.isEnabled() ? '✅ enabled (' + mcpClient.getTools().length + ' tools)' : '❌ disabled (set MCP_SERVER_URL to enable)'}               ║
+║  Authentication: ${REQUIRE_AUTH ? 'ENABLED' : 'DISABLED'}                                            ║
+${REQUIRE_AUTH ? `║  API Key: ${API_KEY}                                      ║` : '║                                                                      ║'}
+║                                                                      ║
+║  Providers:                                                          ║
+║    • claude - Claude CLI (${CLAUDE_CLI_PATH})                                    ║
+║    • kiro   - Kiro CLI (${KIRO_CLI_PATH})                                      ║
+║                                                                      ║
+║  Default Provider: ${DEFAULT_PROVIDER}                                           ║
+║                                                                      ║
+║  Model Selection:                                                    ║
+║    • "kiro/sonnet"   → Uses Kiro CLI with Sonnet                     ║
+║    • "claude/sonnet" → Uses Claude CLI with Sonnet                   ║
+║    • "sonnet"        → Uses ${DEFAULT_PROVIDER} CLI (default)                    ║
+║                                                                      ║
+║  Use in any Anthropic-compatible app:                                ║
+║    Base URL: http://127.0.0.1:${PORT}                                     ║
+║    API Key:  ${API_KEY}                                      ║
 ║                                                                      ║
 ╚══════════════════════════════════════════════════════════════════════╝
-    `);
-  });
-}
-
-start();
+  `);
+});
 
 export default app;
