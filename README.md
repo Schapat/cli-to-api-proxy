@@ -38,6 +38,8 @@ export DEFAULT_PROVIDER=kiro          # 'claude' or 'kiro'
 **Claude CLI** (requires Claude Max):
 `claude/sonnet` · `claude/opus` · `claude/haiku`
 
+With version: `claude/sonnet-4` · `claude/sonnet-3.7` · `claude/opus-4`
+
 ## Requirements
 
 One of these CLIs installed and authenticated:
