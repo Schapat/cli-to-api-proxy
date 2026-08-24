@@ -833,30 +833,75 @@ app.post('/v1/chat/completions', authenticate, async (req: Request, res: Respons
     // Execute with tool handling
     const { response, toolsUsed } = await executeCliWithTools(provider, prompt, systemPrompt, model);
 
-    const result = {
-      id: `chatcmpl-${uuidv4().replace(/-/g, '').slice(0, 24)}`,
-      object: 'chat.completion',
-      created: Math.floor(Date.now() / 1000),
-      model: req.body.model || model,
-      choices: [{
-        index: 0,
-        message: {
-          role: 'assistant',
-          content: response,
-        },
-        finish_reason: 'stop',
-      }],
-      usage: {
-        prompt_tokens: estimateTokens(prompt),
-        completion_tokens: estimateTokens(response),
-        total_tokens: estimateTokens(prompt) + estimateTokens(response),
-      },
-      // Custom field showing which tools were used
-      _tools_used: toolsUsed,
-    };
+    const completionId = `chatcmpl-${uuidv4().replace(/-/g, '').slice(0, 24)}`;
 
-    log('info', 'Response completed', { requestId, provider, outputLength: response.length, toolsUsed });
-    res.json(result);
+    if (body.stream) {
+      // Streaming response (OpenAI SSE format)
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+
+      // Send the response in chunks to simulate streaming
+      const words = response.split(' ');
+      for (let i = 0; i < words.length; i++) {
+        const chunk = (i === 0 ? '' : ' ') + words[i];
+        const sseData = {
+          id: completionId,
+          object: 'chat.completion.chunk',
+          created: Math.floor(Date.now() / 1000),
+          model: req.body.model || model,
+          choices: [{
+            index: 0,
+            delta: { content: chunk },
+            finish_reason: null,
+          }],
+        };
+        res.write(`data: ${JSON.stringify(sseData)}\n\n`);
+      }
+
+      // Send final chunk with finish_reason
+      const finalChunk = {
+        id: completionId,
+        object: 'chat.completion.chunk',
+        created: Math.floor(Date.now() / 1000),
+        model: req.body.model || model,
+        choices: [{
+          index: 0,
+          delta: {},
+          finish_reason: 'stop',
+        }],
+      };
+      res.write(`data: ${JSON.stringify(finalChunk)}\n\n`);
+      res.write('data: [DONE]\n\n');
+      res.end();
+
+      log('info', 'Streaming response completed', { requestId, provider, outputLength: response.length, toolsUsed });
+    } else {
+      // Non-streaming response
+      const result = {
+        id: completionId,
+        object: 'chat.completion',
+        created: Math.floor(Date.now() / 1000),
+        model: req.body.model || model,
+        choices: [{
+          index: 0,
+          message: {
+            role: 'assistant',
+            content: response,
+          },
+          finish_reason: 'stop',
+        }],
+        usage: {
+          prompt_tokens: estimateTokens(prompt),
+          completion_tokens: estimateTokens(response),
+          total_tokens: estimateTokens(prompt) + estimateTokens(response),
+        },
+        _tools_used: toolsUsed,
+      };
+
+      log('info', 'Response completed', { requestId, provider, outputLength: response.length, toolsUsed });
+      res.json(result);
+    }
 
   } catch (error) {
     log('error', 'Request failed', { requestId, provider, error: (error as Error).message });
