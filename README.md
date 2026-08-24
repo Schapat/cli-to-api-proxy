@@ -1,4 +1,4 @@
-# LLM CLI Proxy
+# CLI-to-API Proxy
 
 A local API proxy that exposes **Claude CLI**, **Kiro CLI**, and other LLM command-line tools through standard **Anthropic** and **OpenAI-compatible** REST APIs. Use your existing CLI subscriptions with any application that supports these API formats.
 
@@ -9,17 +9,18 @@ If you have a **Claude CLI** or **Kiro CLI** subscription, you can use this prox
 - ✅ Use your CLI subscription in **n8n**, **Paperclip**, **LangChain**, or any OpenAI/Anthropic-compatible app
 - ✅ Avoid paying for separate API keys
 - ✅ Switch between different CLI backends dynamically
+- ✅ Access **all Claude models** with version control
 - ✅ Run everything locally with your existing subscription
 
 ## Features
 
-- 🔄 **Multi-Provider Support** - Switch between Claude CLI and Kiro CLI on-the-fly (extensible for more)
+- 🔄 **Multi-Provider Support** - Switch between Claude CLI and Kiro CLI on-the-fly
 - 🌐 **Two API Formats**:
   - Anthropic Messages API (`/v1/messages`)
   - OpenAI Chat Completions API (`/v1/chat/completions`)
+- 🎯 **Full Model Support** - All Claude models with version numbers
 - 🔐 **API Key Authentication** - Secure your proxy with a configurable API key
 - 📡 **Streaming Support** - Real-time streaming responses for both API formats
-- 🎯 **Flexible Model Selection** - Use provider prefixes or standard model names
 - ⚙️ **Fully Configurable** - Environment variables for all settings
 
 ---
@@ -36,8 +37,8 @@ If you have a **Claude CLI** or **Kiro CLI** subscription, you can use this prox
 
 ```bash
 # Clone the repository
-git clone https://github.com/Schapat/llm-cli-proxy.git
-cd llm-cli-proxy
+git clone https://github.com/Schapat/cli-to-api-proxy.git
+cd cli-to-api-proxy
 
 # Install dependencies
 npm install
@@ -89,18 +90,45 @@ Default API key: `sk-cli-proxy-12345` (configurable via `PROXY_API_KEY`)
 
 ### Model Selection
 
-The proxy supports flexible model selection with provider prefixes:
+The proxy supports flexible model selection with provider prefixes and full model names.
 
-#### Format: `provider/model`
+#### Claude CLI Models
 
-| Model String | CLI Used | Backend Model |
-|-------------|----------|---------------|
-| `claude/sonnet` | Claude CLI | sonnet |
-| `claude/opus` | Claude CLI | opus |
-| `claude/haiku` | Claude CLI | haiku |
-| `kiro/sonnet` | Kiro CLI | claude-sonnet-4.6 |
-| `kiro/opus` | Kiro CLI | claude-opus-4.5 |
-| `kiro/haiku` | Kiro CLI | claude-haiku-4.5 |
+| Model String | Description |
+|-------------|-------------|
+| **Simple Aliases** | |
+| `claude/opus` | Latest Opus model |
+| `claude/sonnet` | Latest Sonnet model |
+| `claude/haiku` | Latest Haiku model |
+| `claude/fable` | Claude Fable |
+| **With Version Numbers** | |
+| `claude/opus-4` | Claude Opus 4 |
+| `claude/sonnet-4` | Claude Sonnet 4 |
+| `claude/sonnet-3.7` | Claude Sonnet 3.7 |
+| `claude/sonnet-3.5` | Claude Sonnet 3.5 |
+| `claude/haiku-3.5` | Claude Haiku 3.5 |
+| `claude/opus-3` | Claude Opus 3 |
+| **Full API Names** | |
+| `claude-opus-4-20250514` | Claude Opus 4 (exact version) |
+| `claude-sonnet-4-20250514` | Claude Sonnet 4 (exact version) |
+| `claude-3-7-sonnet-20250219` | Claude 3.7 Sonnet |
+| `claude-3-5-sonnet-20241022` | Claude 3.5 Sonnet |
+| `claude-3-5-haiku-20241022` | Claude 3.5 Haiku |
+| `claude-3-opus-20240229` | Claude 3 Opus |
+
+#### Kiro CLI Models
+
+| Model String | Backend Model |
+|-------------|---------------|
+| `kiro/sonnet` | claude-sonnet-4.6 |
+| `kiro/opus` | claude-opus-4.5 |
+| `kiro/haiku` | claude-haiku-4.5 |
+| `kiro/auto` | auto (let Kiro choose) |
+| `kiro/sonnet-4.6` | claude-sonnet-4.6 |
+| `kiro/sonnet-4.5` | claude-sonnet-4.5 |
+| `kiro/opus-4.5` | claude-opus-4.5 |
+| `kiro/minimax` | minimax-m2.5 |
+| `kiro/qwen` | qwen3-coder-next |
 
 #### Simple Aliases (use default provider)
 
@@ -109,14 +137,6 @@ The proxy supports flexible model selection with provider prefixes:
 | `sonnet` | Uses default provider with Sonnet |
 | `opus` | Uses default provider with Opus |
 | `haiku` | Uses default provider with Haiku |
-
-#### Standard Anthropic Names (use default provider)
-
-| Model String | Description |
-|-------------|-------------|
-| `claude-sonnet-4-20250514` | Latest Sonnet |
-| `claude-opus-4-20250514` | Latest Opus |
-| `claude-3-5-sonnet-20241022` | Claude 3.5 Sonnet |
 
 ### API Examples
 

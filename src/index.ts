@@ -24,59 +24,119 @@ const REQUIRE_AUTH = process.env.REQUIRE_AUTH !== 'false';
 // Provider type
 type Provider = 'claude' | 'kiro';
 
-// Model mapping for Claude CLI
+// ============================================================================
+// CLAUDE CLI MODEL MAPPING
+// ============================================================================
+// Claude CLI accepts either aliases (opus, sonnet, haiku, fable) or full model names.
+// We map API model names to CLI-compatible names.
+// Full model names are passed through directly to the CLI.
+
 const CLAUDE_MODEL_MAP: Record<string, string> = {
-  'claude-sonnet-4-20250514': 'sonnet',
-  'claude-opus-4-20250514': 'opus',
-  'claude-3-5-sonnet-20241022': 'sonnet',
-  'claude-3-5-sonnet-latest': 'sonnet',
-  'claude-3-opus-20240229': 'opus',
-  'claude-3-sonnet-20240229': 'sonnet',
-  'claude-3-haiku-20240307': 'haiku',
+  // === Claude 4 Models (Latest) ===
+  'claude-opus-4-20250514': 'claude-opus-4-20250514',
+  'claude-sonnet-4-20250514': 'claude-sonnet-4-20250514',
+  'claude-fable-5': 'claude-fable-5',
+  
+  // === Claude 3.7 Models ===
+  'claude-3-7-sonnet-20250219': 'claude-3-7-sonnet-20250219',
+  'claude-3-7-sonnet-latest': 'claude-3-7-sonnet-20250219',
+  
+  // === Claude 3.5 Models ===
+  'claude-3-5-sonnet-20241022': 'claude-3-5-sonnet-20241022',
+  'claude-3-5-sonnet-20240620': 'claude-3-5-sonnet-20240620',
+  'claude-3-5-sonnet-latest': 'claude-3-5-sonnet-20241022',
+  'claude-3-5-haiku-20241022': 'claude-3-5-haiku-20241022',
+  'claude-3-5-haiku-latest': 'claude-3-5-haiku-20241022',
+  
+  // === Claude 3 Models ===
+  'claude-3-opus-20240229': 'claude-3-opus-20240229',
+  'claude-3-opus-latest': 'claude-3-opus-20240229',
+  'claude-3-sonnet-20240229': 'claude-3-sonnet-20240229',
+  'claude-3-haiku-20240307': 'claude-3-haiku-20240307',
+  
+  // === Simple Aliases (for convenience) ===
+  'opus': 'opus',
+  'sonnet': 'sonnet',
+  'haiku': 'haiku',
+  'fable': 'fable',
+  
+  // === Provider-prefixed aliases ===
+  'claude/opus': 'opus',
+  'claude/sonnet': 'sonnet',
+  'claude/haiku': 'haiku',
+  'claude/fable': 'fable',
+  
+  // === Provider-prefixed with versions ===
+  'claude/opus-4': 'claude-opus-4-20250514',
+  'claude/sonnet-4': 'claude-sonnet-4-20250514',
+  'claude/sonnet-3.7': 'claude-3-7-sonnet-20250219',
+  'claude/sonnet-3.5': 'claude-3-5-sonnet-20241022',
+  'claude/haiku-3.5': 'claude-3-5-haiku-20241022',
+  'claude/opus-3': 'claude-3-opus-20240229',
+  'claude/sonnet-3': 'claude-3-sonnet-20240229',
+  'claude/haiku-3': 'claude-3-haiku-20240307',
 };
 
-// Model mapping for Kiro CLI (Kiro uses different model names!)
-// Available: auto, claude-sonnet-4.6, claude-opus-4.5, claude-sonnet-4.5, claude-sonnet-4, claude-haiku-4.5
+// ============================================================================
+// KIRO CLI MODEL MAPPING
+// ============================================================================
+// Kiro CLI uses different model identifiers.
+// Available: auto, claude-sonnet-4.6, claude-opus-4.5, claude-sonnet-4.5, 
+//            claude-sonnet-4, claude-haiku-4.5
 // Also: minimax-m2.5, minimax-m2.1, qwen3-coder-next
+
 const KIRO_MODEL_MAP: Record<string, string> = {
-  // Kiro-prefixed models
+  // === Kiro-prefixed models ===
   'kiro/sonnet': 'claude-sonnet-4.6',
   'kiro/opus': 'claude-opus-4.5',
   'kiro/haiku': 'claude-haiku-4.5',
   'kiro/auto': 'auto',
+  
+  // === Kiro with versions ===
+  'kiro/sonnet-4.6': 'claude-sonnet-4.6',
+  'kiro/sonnet-4.5': 'claude-sonnet-4.5',
+  'kiro/sonnet-4': 'claude-sonnet-4',
+  'kiro/opus-4.5': 'claude-opus-4.5',
+  'kiro/haiku-4.5': 'claude-haiku-4.5',
+  
+  // === Kiro-specific models ===
+  'kiro/minimax': 'minimax-m2.5',
+  'kiro/minimax-2.5': 'minimax-m2.5',
+  'kiro/minimax-2.1': 'minimax-m2.1',
+  'kiro/qwen': 'qwen3-coder-next',
+  
+  // === Legacy dash-style ===
   'kiro-sonnet': 'claude-sonnet-4.6',
   'kiro-opus': 'claude-opus-4.5',
   'kiro-haiku': 'claude-haiku-4.5',
-  // Simple aliases
-  'sonnet': 'claude-sonnet-4.6',
-  'opus': 'claude-opus-4.5',
-  'haiku': 'claude-haiku-4.5',
-  // Kiro-specific models
-  'kiro/minimax': 'minimax-m2.5',
-  'kiro/qwen': 'qwen3-coder-next',
 };
 
 // Parse model string to extract provider and model
-// Format: "provider/model" or "provider-model" or just "model"
+// Format: "provider/model" or just "model"
 function parseModel(modelStr: string): { provider: Provider; model: string } {
   // Check for explicit kiro provider prefix
   if (modelStr.startsWith('kiro/') || modelStr.startsWith('kiro-')) {
-    const key = modelStr.replace('-', '/'); // normalize kiro-sonnet to kiro/sonnet
-    const kiroModel = KIRO_MODEL_MAP[key] || KIRO_MODEL_MAP[modelStr];
+    const kiroModel = KIRO_MODEL_MAP[modelStr];
     if (kiroModel) {
       return { provider: 'kiro', model: kiroModel };
     }
-    // Unknown kiro model, try to use as-is
+    // Unknown kiro model, try to use as-is (strip prefix)
     return { provider: 'kiro', model: modelStr.replace(/^kiro[-\/]/, '') };
   }
   
   // Check for explicit claude/anthropic provider prefix
   if (modelStr.startsWith('claude/') || modelStr.startsWith('anthropic/')) {
-    const model = modelStr.replace(/^(claude|anthropic)[-\/]/, '');
-    return { provider: 'claude', model: CLAUDE_MODEL_MAP[model] || CLAUDE_MODEL_MAP[modelStr] || model };
+    const claudeModel = CLAUDE_MODEL_MAP[modelStr];
+    if (claudeModel) {
+      return { provider: 'claude', model: claudeModel };
+    }
+    // Strip prefix and try to use as-is
+    const stripped = modelStr.replace(/^(claude|anthropic)\//, '');
+    return { provider: 'claude', model: CLAUDE_MODEL_MAP[stripped] || stripped };
   }
 
-  // Check if it's a known Claude model (API format)
+  // Check if it's a known Claude model (API format like claude-3-5-sonnet-20241022)
+  if (CLAUDE_MODEL_MAP[modelStr]) {
   if (CLAUDE_MODEL_MAP[modelStr]) {
     return { provider: DEFAULT_PROVIDER as Provider, model: CLAUDE_MODEL_MAP[modelStr] };
   }
@@ -221,7 +281,8 @@ async function executeClaudeCli(
       args.push('--system-prompt', systemPrompt);
     }
 
-    if (model && ['sonnet', 'opus', 'haiku'].includes(model)) {
+    // Pass model to CLI - accepts both aliases (sonnet, opus) and full names (claude-3-5-sonnet-20241022)
+    if (model) {
       args.push('--model', model);
     }
 
@@ -392,7 +453,8 @@ async function* executeClaudeCliStream(
     args.push('--system-prompt', systemPrompt);
   }
 
-  if (model && ['sonnet', 'opus', 'haiku'].includes(model)) {
+  // Pass model to CLI - accepts both aliases (sonnet, opus) and full names
+  if (model) {
     args.push('--model', model);
   }
 
@@ -526,17 +588,36 @@ app.get('/', (_req: Request, res: Response) => {
 // Models endpoint
 app.get('/v1/models', authenticate, (_req: Request, res: Response) => {
   const models = [
-    // Claude models
-    { id: 'claude/sonnet', name: 'Claude Sonnet (via Claude CLI)', provider: 'claude' },
-    { id: 'claude/opus', name: 'Claude Opus (via Claude CLI)', provider: 'claude' },
-    { id: 'claude/haiku', name: 'Claude Haiku (via Claude CLI)', provider: 'claude' },
-    // Kiro models
+    // === Claude CLI Models ===
+    // Latest (Claude 4)
+    { id: 'claude/opus', name: 'Claude Opus (latest)', provider: 'claude' },
+    { id: 'claude/sonnet', name: 'Claude Sonnet (latest)', provider: 'claude' },
+    { id: 'claude/haiku', name: 'Claude Haiku (latest)', provider: 'claude' },
+    { id: 'claude/fable', name: 'Claude Fable', provider: 'claude' },
+    // With version numbers
+    { id: 'claude/opus-4', name: 'Claude Opus 4', provider: 'claude' },
+    { id: 'claude/sonnet-4', name: 'Claude Sonnet 4', provider: 'claude' },
+    { id: 'claude/sonnet-3.7', name: 'Claude Sonnet 3.7', provider: 'claude' },
+    { id: 'claude/sonnet-3.5', name: 'Claude Sonnet 3.5', provider: 'claude' },
+    { id: 'claude/haiku-3.5', name: 'Claude Haiku 3.5', provider: 'claude' },
+    { id: 'claude/opus-3', name: 'Claude Opus 3', provider: 'claude' },
+    // Full API names
+    { id: 'claude-opus-4-20250514', name: 'Claude Opus 4 (2025-05-14)', provider: 'claude' },
+    { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4 (2025-05-14)', provider: 'claude' },
+    { id: 'claude-3-7-sonnet-20250219', name: 'Claude 3.7 Sonnet (2025-02-19)', provider: 'claude' },
+    { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet (2024-10-22)', provider: 'claude' },
+    { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku (2024-10-22)', provider: 'claude' },
+    { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus (2024-02-29)', provider: 'claude' },
+    
+    // === Kiro CLI Models ===
     { id: 'kiro/sonnet', name: 'Claude Sonnet (via Kiro CLI)', provider: 'kiro' },
     { id: 'kiro/opus', name: 'Claude Opus (via Kiro CLI)', provider: 'kiro' },
-    // Standard Anthropic model names (use default provider)
-    { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4', provider: DEFAULT_PROVIDER },
-    { id: 'claude-opus-4-20250514', name: 'Claude Opus 4', provider: DEFAULT_PROVIDER },
-    { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet', provider: DEFAULT_PROVIDER },
+    { id: 'kiro/haiku', name: 'Claude Haiku (via Kiro CLI)', provider: 'kiro' },
+    { id: 'kiro/auto', name: 'Auto (via Kiro CLI)', provider: 'kiro' },
+    { id: 'kiro/sonnet-4.6', name: 'Claude Sonnet 4.6 (via Kiro CLI)', provider: 'kiro' },
+    { id: 'kiro/opus-4.5', name: 'Claude Opus 4.5 (via Kiro CLI)', provider: 'kiro' },
+    { id: 'kiro/minimax', name: 'MiniMax M2.5 (via Kiro CLI)', provider: 'kiro' },
+    { id: 'kiro/qwen', name: 'Qwen3 Coder (via Kiro CLI)', provider: 'kiro' },
   ];
 
   res.json({
