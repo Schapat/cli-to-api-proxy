@@ -404,3 +404,48 @@ Contributions are welcome! Please open an issue or submit a pull request.
 ## Disclaimer
 
 This project is not affiliated with Anthropic or AWS. It simply provides a bridge between CLI tools and standard API interfaces. Usage is subject to the terms of service of Claude CLI and Kiro CLI.
+
+---
+
+## Docker
+
+### Build the Image
+
+```bash
+# Build
+npm run build
+docker build -t cli-to-api-proxy:latest .
+
+# Or use docker compose
+docker compose build
+```
+
+### Run with Docker
+
+**Important:** The container needs access to Claude CLI/Kiro CLI binaries. The easiest approach is to run the proxy directly on your host where the CLIs are installed.
+
+```bash
+# Run container (uses host network for CLI access)
+docker run -d \
+  --name cli-to-api-proxy \
+  --network host \
+  -e PROXY_API_KEY=your-secret-key \
+  -v ~/.claude:/root/.claude:ro \
+  -v ~/.config/claude:/root/.config/claude:ro \
+  cli-to-api-proxy:latest
+
+# Or with docker compose
+docker compose up -d
+```
+
+### Environment Variables for Docker
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PROXY_API_KEY` | `sk-cli-proxy-12345` | API key for authentication |
+| `PROXY_PORT` | `8082` | Port to listen on |
+| `DEFAULT_PROVIDER` | `claude` | Default CLI provider |
+| `TIMEOUT_MS` | `300000` | Request timeout |
+| `CLAUDE_CLI_PATH` | `/usr/local/bin/claude` | Path to Claude CLI |
+| `KIRO_CLI_PATH` | `/usr/local/bin/kiro-cli` | Path to Kiro CLI |
+

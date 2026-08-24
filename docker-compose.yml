@@ -1,0 +1,31 @@
+# CLI-to-API Proxy Docker Compose
+#
+# Usage:
+#   docker compose up -d
+#
+# Requirements:
+#   - Claude CLI installed on host at /usr/local/bin/claude (or adjust path)
+#   - CLI authenticated (run `claude` once on host first)
+
+services:
+  proxy:
+    build: .
+    image: cli-to-api-proxy:latest
+    container_name: cli-to-api-proxy
+    ports:
+      - "8082:8082"
+    environment:
+      PROXY_PORT: 8082
+      PROXY_API_KEY: ${PROXY_API_KEY:-sk-cli-proxy-12345}
+      REQUIRE_AUTH: "true"
+      DEFAULT_PROVIDER: claude
+      TIMEOUT_MS: "300000"
+      # Use host network for CLI access (see network_mode below)
+    # Use host network so container can access host CLIs
+    network_mode: host
+    volumes:
+      # Mount CLI config directories (read-only)
+      - ${HOME}/.claude:/root/.claude:ro
+      - ${HOME}/.config/claude:/root/.config/claude:ro
+      - ${HOME}/.kiro:/root/.kiro:ro
+    restart: unless-stopped

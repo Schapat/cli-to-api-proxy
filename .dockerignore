@@ -1,0 +1,12 @@
+node_modules
+*.log
+.git
+.gitignore
+.env
+.env.*
+README.md
+LICENSE
+Dockerfile
+docker-compose*.yml
+src/
+tsconfig.json
