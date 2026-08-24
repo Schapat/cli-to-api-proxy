@@ -137,7 +137,6 @@ function parseModel(modelStr: string): { provider: Provider; model: string } {
 
   // Check if it's a known Claude model (API format like claude-3-5-sonnet-20241022)
   if (CLAUDE_MODEL_MAP[modelStr]) {
-  if (CLAUDE_MODEL_MAP[modelStr]) {
     return { provider: DEFAULT_PROVIDER as Provider, model: CLAUDE_MODEL_MAP[modelStr] };
   }
 
