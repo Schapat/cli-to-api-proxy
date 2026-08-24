@@ -1,307 +1,71 @@
 # CLI-to-API Proxy
 
-**OpenAI-compatible REST API for Claude CLI and Kiro CLI with MCP tool support.**
+**Use Claude CLI or Kiro CLI as an OpenAI-compatible API.**
 
-Use Claude or Kiro CLI through any OpenAI-compatible application (n8n, Continue.dev, Open WebUI, custom apps) while maintaining access to MCP tools.
+No API key? No problem. Use your existing CLI subscriptions (Claude Max, Kiro/AWS Builder ID) in any app that supports OpenAI's API.
 
-## Features
+## Why?
 
-- 🔄 **OpenAI-compatible API** - Works with any app that supports OpenAI's chat completions API
-- 🤖 **Dual Provider** - Use Claude CLI or Kiro CLI interchangeably
-- 🔧 **MCP Tool Support** - Connect to any MCP server (n8n, GitHub, filesystem, databases, etc.)
-- 🐳 **Docker Ready** - Easy deployment with Docker Compose
-- ⚡ **Streaming** - Real-time streaming responses
-- 🔐 **Authentication** - API key protection
+You have **Claude CLI** or **Kiro CLI** working locally, but apps like Paperclip, Open WebUI, TypingMind, or Continue.dev need an API endpoint. This proxy bridges that gap.
+
+```
+┌─────────────┐         ┌─────────────┐         ┌─────────────┐
+│  Paperclip  │         │             │         │ Claude CLI  │
+│  Open WebUI │ ──────▶ │   Proxy     │ ──────▶ │    or       │
+│  Any App    │ ◀────── │             │ ◀────── │  Kiro CLI   │
+└─────────────┘         └─────────────┘         └─────────────┘
+     HTTP API              localhost              Your CLI
+```
 
 ## Quick Start
 
-### 1. Install Dependencies
-
 ```bash
+# Clone
 git clone https://github.com/Schapat/cli-to-api-proxy.git
 cd cli-to-api-proxy
+
+# Install
 npm install
+
+# Run
+npm start
 ```
 
-### 2. Configure
-
-```bash
-# Copy example config
-cp config.example.json config.json
-
-# Edit config.json with your settings
-```
-
-### 3. Run
-
-```bash
-# Development
-npm run dev
-
-# Production
-npm run build && npm start
-```
-
-### 4. Test
-
-```bash
-curl http://localhost:8082/v1/chat/completions \
-  -H "Authorization: Bearer your-api-key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "claude/sonnet",
-    "messages": [{"role": "user", "content": "Hello!"}]
-  }'
-```
+The proxy runs at `http://localhost:8082/v1`
 
 ## Configuration
 
-### Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PROXY_PORT` | Server port | `8082` |
-| `PROXY_HOST` | Server host | `0.0.0.0` |
-| `PROXY_API_KEY` | API key for authentication | `sk-cli-proxy-key` |
-| `REQUIRE_AUTH` | Enable authentication | `true` |
-| `DEFAULT_PROVIDER` | Default CLI provider | `claude` |
-| `CLAUDE_CLI_PATH` | Path to Claude CLI | `claude` |
-| `KIRO_CLI_PATH` | Path to Kiro CLI | `kiro-cli` |
-| `CONFIG_FILE` | Path to config file | `config.json` |
-
-### Config File (config.json)
-
-```json
-{
-  "proxy": {
-    "port": 8082,
-    "apiKey": "your-secret-key"
-  },
-  "providers": {
-    "default": "claude",
-    "claude": { "enabled": true },
-    "kiro": { "enabled": true }
-  },
-  "mcp": {
-    "enabled": true,
-    "servers": [
-      {
-        "name": "n8n",
-        "url": "http://localhost:5678/mcp-server/http",
-        "transport": "http-sse",
-        "auth": { "type": "bearer", "token": "${N8N_MCP_TOKEN}" }
-      }
-    ]
-  }
-}
-```
-
-## MCP Server Configuration
-
-The proxy supports connecting to multiple MCP servers simultaneously. Each server can use either **HTTP-SSE** or **stdio** transport.
-
-### HTTP-SSE Transport (Remote Servers)
-
-For HTTP-based MCP servers like n8n:
-
-```json
-{
-  "name": "n8n",
-  "description": "n8n workflow automation",
-  "url": "http://localhost:5678/mcp-server/http",
-  "transport": "http-sse",
-  "auth": {
-    "type": "bearer",
-    "token": "${N8N_MCP_TOKEN}"
-  },
-  "enabled": true
-}
-```
-
-### Stdio Transport (Local Processes)
-
-For MCP servers that run as local processes:
-
-```json
-{
-  "name": "filesystem",
-  "description": "Local filesystem access",
-  "command": "npx",
-  "args": ["-y", "@modelcontextprotocol/server-filesystem", "/allowed/path"],
-  "transport": "stdio",
-  "enabled": true
-}
-```
-
-### Authentication Types
-
-| Type | Description | Example |
-|------|-------------|---------|
-| `bearer` | Bearer token in Authorization header | `"token": "${ENV_VAR}"` or `"token": "literal"` |
-| `api-key` | Custom header with API key | `"header": "X-API-Key", "token": "..."` |
-| `env` | Pass env var to stdio process | `"variable": "GITHUB_TOKEN"` |
-| `none` | No authentication | - |
-
-### Token References
-
-Tokens can reference environment variables using `${VAR_NAME}` syntax:
-
-```json
-{
-  "auth": {
-    "type": "bearer",
-    "token": "${N8N_MCP_TOKEN}"
-  }
-}
-```
-
-Then set the environment variable:
-```bash
-export N8N_MCP_TOKEN="eyJhbGciOi..."
-```
-
-## Popular MCP Server Examples
-
-### n8n (Workflow Automation)
-
-```json
-{
-  "name": "n8n",
-  "url": "http://localhost:5678/mcp-server/http",
-  "transport": "http-sse",
-  "auth": { "type": "bearer", "token": "${N8N_MCP_TOKEN}" }
-}
-```
-
-Get your token: n8n → Settings → MCP Servers → Connect a client → API key
-
-### GitHub
-
-```json
-{
-  "name": "github",
-  "command": "npx",
-  "args": ["-y", "@modelcontextprotocol/server-github"],
-  "transport": "stdio",
-  "env": { "GITHUB_TOKEN": "${GITHUB_TOKEN}" }
-}
-```
-
-### PostgreSQL
-
-```json
-{
-  "name": "postgres",
-  "command": "npx",
-  "args": ["-y", "@modelcontextprotocol/server-postgres", "${POSTGRES_URL}"],
-  "transport": "stdio"
-}
-```
-
-### Filesystem
-
-```json
-{
-  "name": "filesystem",
-  "command": "npx",
-  "args": ["-y", "@modelcontextprotocol/server-filesystem", "/home/user/documents"],
-  "transport": "stdio"
-}
-```
-
-### Slack
-
-```json
-{
-  "name": "slack",
-  "command": "npx",
-  "args": ["-y", "@modelcontextprotocol/server-slack"],
-  "transport": "stdio",
-  "env": { "SLACK_BOT_TOKEN": "${SLACK_BOT_TOKEN}" }
-}
-```
-
-### Brave Search
-
-```json
-{
-  "name": "brave-search",
-  "command": "npx",
-  "args": ["-y", "@modelcontextprotocol/server-brave-search"],
-  "transport": "stdio",
-  "env": { "BRAVE_API_KEY": "${BRAVE_API_KEY}" }
-}
-```
-
-## Model Selection
-
-Use provider prefixes to select which CLI to use:
-
-| Model | Provider | Description |
-|-------|----------|-------------|
-| `claude/sonnet` | Claude CLI | Latest Sonnet |
-| `claude/opus` | Claude CLI | Latest Opus |
-| `claude/opus-4` | Claude CLI | Claude Opus 4 |
-| `claude/sonnet-3.7` | Claude CLI | Claude Sonnet 3.7 |
-| `kiro/sonnet` | Kiro CLI | Sonnet via Kiro |
-| `kiro/opus` | Kiro CLI | Opus via Kiro |
-| `sonnet` | Default | Uses default provider |
-
-## Docker Deployment
-
-### Docker Compose
-
-```yaml
-version: '3.8'
-
-services:
-  cli-proxy:
-    build: .
-    ports:
-      - "8082:8082"
-    environment:
-      - PROXY_API_KEY=your-secret-key
-      - N8N_MCP_TOKEN=${N8N_MCP_TOKEN}
-      - GITHUB_TOKEN=${GITHUB_TOKEN}
-    volumes:
-      - ./config.json:/app/config.json:ro
-      # Mount CLI configs for authentication
-      - ~/.claude:/root/.claude:ro
-      - ~/.kiro:/root/.kiro:ro
-```
-
-### Build & Run
+Set via environment variables or `.env` file:
 
 ```bash
-docker compose up -d
+# Required
+PROXY_API_KEY=your-secret-key      # Protect your proxy
+
+# Optional
+PROXY_PORT=8082                     # Default: 8082
+DEFAULT_PROVIDER=kiro               # 'claude' or 'kiro'
+CLAUDE_CLI_PATH=claude              # Path to Claude CLI
+KIRO_CLI_PATH=kiro-cli              # Path to Kiro CLI
 ```
 
-## API Endpoints
+## Connect Your Apps
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/v1/chat/completions` | POST | OpenAI-compatible chat |
-| `/v1/messages` | POST | Anthropic-compatible messages |
-| `/v1/models` | GET | List available models |
-| `/v1/tools` | GET | List available MCP tools |
-| `/health` | GET | Health check |
+### Paperclip
+- API Base: `http://localhost:8082/v1`
+- API Key: Your `PROXY_API_KEY`
+- Model: `kiro/sonnet` or `claude/sonnet`
 
-## Integration Examples
-
-### n8n AI Assistant
-
-1. In n8n: Settings → AI Assistants → Custom Model
-2. Base URL: `http://localhost:8082/v1`
-3. API Key: Your proxy API key
-4. Model: `claude/sonnet` or `kiro/sonnet`
+### Open WebUI
+Settings → Connections → OpenAI API:
+- Base URL: `http://localhost:8082/v1`
+- API Key: Your `PROXY_API_KEY`
 
 ### Continue.dev
-
 ```json
 // ~/.continue/config.json
 {
   "models": [{
-    "title": "Claude via Proxy",
+    "title": "Claude via CLI",
     "provider": "openai",
     "model": "claude/sonnet",
     "apiBase": "http://localhost:8082/v1",
@@ -310,14 +74,10 @@ docker compose up -d
 }
 ```
 
-### Open WebUI
+### TypingMind / ChatBox / LibreChat
+Same pattern: Base URL + API Key + Model name.
 
-1. Settings → Connections → OpenAI API
-2. API Base URL: `http://localhost:8082/v1`
-3. API Key: Your proxy API key
-
-### Python
-
+### Python / curl
 ```python
 from openai import OpenAI
 
@@ -327,85 +87,117 @@ client = OpenAI(
 )
 
 response = client.chat.completions.create(
-    model="claude/sonnet",
+    model="kiro/sonnet",
     messages=[{"role": "user", "content": "Hello!"}]
 )
+print(response.choices[0].message.content)
 ```
-
-### curl
 
 ```bash
 curl http://localhost:8082/v1/chat/completions \
   -H "Authorization: Bearer your-proxy-key" \
   -H "Content-Type: application/json" \
-  -d '{
-    "model": "claude/sonnet",
-    "messages": [{"role": "user", "content": "List my n8n workflows"}],
-    "stream": false
-  }'
+  -d '{"model": "kiro/sonnet", "messages": [{"role": "user", "content": "Hello!"}]}'
 ```
 
-## How MCP Tools Work
+## Available Models
 
-1. **Proxy connects** to configured MCP servers on startup
-2. **Tools are discovered** and their descriptions loaded
-3. **Tool descriptions** are injected into the system prompt
-4. **CLI responds** with tool calls in a specific JSON format
-5. **Proxy executes** the tool via MCP
-6. **Result is fed back** to the CLI for final response
+### Claude CLI
+| Model | Description |
+|-------|-------------|
+| `claude/sonnet` | Latest Sonnet (default) |
+| `claude/opus` | Latest Opus |
+| `claude/haiku` | Latest Haiku |
+| `claude/opus-4` | Claude Opus 4 |
+| `claude/sonnet-4` | Claude Sonnet 4 |
+| `claude/sonnet-3.7` | Claude Sonnet 3.7 |
+| `claude/sonnet-3.5` | Claude Sonnet 3.5 |
 
-### Tool Call Format
+### Kiro CLI
+| Model | Description |
+|-------|-------------|
+| `kiro/sonnet` | Claude Sonnet 4.6 |
+| `kiro/opus` | Claude Opus 4.5 |
+| `kiro/haiku` | Claude Haiku 4.5 |
+| `kiro/auto` | Auto-select |
 
-The CLI is instructed to respond with:
-```json
-{"tool_call": {"name": "tool_name", "arguments": {"param": "value"}}}
-```
-
-The proxy intercepts this, executes the tool, and continues the conversation.
-
-## Troubleshooting
-
-### MCP Connection Failed
+## Docker
 
 ```bash
-# Check MCP server is running
-curl http://localhost:5678/mcp-server/http \
-  -H "Authorization: Bearer $N8N_MCP_TOKEN" \
-  -H "Accept: application/json, text/event-stream"
-
-# Check proxy health
-curl http://localhost:8082/health
+docker run -d \
+  -p 8082:8082 \
+  -e PROXY_API_KEY=your-secret \
+  -v ~/.claude:/root/.claude:ro \
+  -v ~/.kiro:/root/.kiro:ro \
+  ghcr.io/schapat/cli-to-api-proxy:latest
 ```
 
-### CLI Not Found
+Or with Docker Compose:
 
+```yaml
+services:
+  cli-proxy:
+    build: .
+    ports:
+      - "8082:8082"
+    environment:
+      - PROXY_API_KEY=your-secret
+      - DEFAULT_PROVIDER=kiro
+    volumes:
+      - ~/.claude:/root/.claude:ro
+      - ~/.kiro:/root/.kiro:ro
+```
+
+## API Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `POST /v1/chat/completions` | OpenAI-compatible chat (streaming supported) |
+| `GET /v1/models` | List available models |
+| `GET /health` | Health check |
+
+## Prerequisites
+
+You need at least one CLI installed and authenticated:
+
+### Claude CLI
 ```bash
-# Verify Claude CLI
-which claude
-claude --version
+# Install
+npm install -g @anthropic-ai/claude-cli
 
-# Verify Kiro CLI  
-which kiro-cli
-kiro-cli --version
+# Login (requires Claude Max subscription)
+claude login
 ```
 
-### Authentication Issues
+### Kiro CLI
+```bash
+# Install
+npm install -g @anthropic-ai/kiro-cli
 
-- Ensure `PROXY_API_KEY` matches what you're sending
-- Check MCP tokens are valid and not expired
-- Verify environment variables are set: `echo $N8N_MCP_TOKEN`
+# Login (free with AWS Builder ID)
+kiro-cli auth login
+```
 
-## Contributing
+## How It Works
 
-Contributions welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) first.
+1. App sends OpenAI-format request to proxy
+2. Proxy converts to CLI command
+3. CLI processes with your subscription
+4. Proxy converts response back to OpenAI format
+5. App receives response
+
+No API costs - uses your existing CLI subscription.
+
+## Limitations
+
+- **Speed**: CLI is slower than native API (~3-10s per response)
+- **No native tool/function calling**: Apps can't control tools (but CLI works fine for chat)
+- **Rate limits**: Subject to your CLI subscription limits
 
 ## License
 
-MIT License - see [LICENSE](LICENSE)
+MIT
 
-## Related Projects
+## Credits
 
-- [Claude CLI](https://github.com/anthropics/claude-cli)
-- [Kiro CLI](https://kiro.dev)
-- [Model Context Protocol](https://modelcontextprotocol.io)
-- [n8n](https://n8n.io)
+Built for the community who want to use their CLI subscriptions everywhere.

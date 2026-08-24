@@ -1,7 +1,7 @@
 {
-  "name": "claude-cli-proxy",
-  "version": "1.0.0",
-  "description": "Proxy server that exposes Claude CLI as an Anthropic-compatible API endpoint",
+  "name": "cli-to-api-proxy",
+  "version": "2.0.0",
+  "description": "Use Claude CLI or Kiro CLI as an OpenAI-compatible API",
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
@@ -12,14 +12,19 @@
   },
   "keywords": [
     "claude",
+    "kiro",
     "cli",
     "proxy",
     "anthropic",
-    "api",
-    "n8n"
+    "openai",
+    "api"
   ],
   "author": "Patrick Scharnow",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Schapat/cli-to-api-proxy.git"
+  },
   "dependencies": {
     "express": "^4.21.0",
     "uuid": "^10.0.0"
