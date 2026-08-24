@@ -1,0 +1,106 @@
+{
+  "$schema": "./config.schema.json",
+  
+  "proxy": {
+    "port": 8082,
+    "host": "0.0.0.0",
+    "apiKey": "sk-cli-proxy-your-secret-key",
+    "requireAuth": true,
+    "timeoutMs": 300000
+  },
+
+  "providers": {
+    "default": "claude",
+    "claude": {
+      "enabled": true,
+      "cliPath": "claude",
+      "description": "Claude CLI (requires Anthropic subscription)"
+    },
+    "kiro": {
+      "enabled": true,
+      "cliPath": "kiro-cli",
+      "description": "Kiro CLI (requires AWS Builder ID)"
+    }
+  },
+
+  "mcp": {
+    "enabled": true,
+    "servers": [
+      {
+        "name": "n8n",
+        "description": "n8n workflow automation - create and manage workflows",
+        "url": "http://localhost:5678/mcp-server/http",
+        "transport": "http-sse",
+        "auth": {
+          "type": "bearer",
+          "token": "${N8N_MCP_TOKEN}"
+        },
+        "enabled": true
+      },
+      {
+        "name": "filesystem",
+        "description": "Local filesystem access",
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/allowed/dir"],
+        "transport": "stdio",
+        "enabled": false
+      },
+      {
+        "name": "github",
+        "description": "GitHub repository access",
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-github"],
+        "transport": "stdio",
+        "auth": {
+          "type": "env",
+          "variable": "GITHUB_TOKEN"
+        },
+        "enabled": false
+      },
+      {
+        "name": "postgres",
+        "description": "PostgreSQL database access",
+        "command": "npx", 
+        "args": ["-y", "@modelcontextprotocol/server-postgres"],
+        "transport": "stdio",
+        "auth": {
+          "type": "env",
+          "variable": "POSTGRES_URL"
+        },
+        "enabled": false
+      },
+      {
+        "name": "slack",
+        "description": "Slack workspace access",
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-slack"],
+        "transport": "stdio",
+        "auth": {
+          "type": "env",
+          "variable": "SLACK_BOT_TOKEN"
+        },
+        "enabled": false
+      },
+      {
+        "name": "custom-http",
+        "description": "Example: Custom HTTP MCP server",
+        "url": "https://your-mcp-server.com/mcp",
+        "transport": "http-sse",
+        "auth": {
+          "type": "bearer",
+          "token": "${CUSTOM_MCP_TOKEN}"
+        },
+        "headers": {
+          "X-Custom-Header": "value"
+        },
+        "enabled": false
+      }
+    ]
+  },
+
+  "toolFilters": {
+    "allowList": [],
+    "denyList": [],
+    "prefixWithServer": true
+  }
+}
