@@ -10,8 +10,11 @@ No API key? Use your existing CLI subscription in Paperclip, Open WebUI, Continu
 git clone https://github.com/Schapat/cli-to-api-proxy.git
 cd cli-to-api-proxy
 npm install
+npm run setup   # Interactive wizard
 npm start
 ```
+
+Or configure manually:
 
 Runs at `http://localhost:8082`
 
